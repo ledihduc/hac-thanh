@@ -1,0 +1,191 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Check, ChevronLeft, Search, UserRound, X } from "lucide-react";
+
+type Member = { id: number; name: string };
+
+const members: Member[] = [
+  { id: 1, name: "Đàm Mai An" },
+  { id: 2, name: "Đỗ Ngọc Vương Anh" },
+  { id: 3, name: "Lê Vân Anh" },
+  { id: 4, name: "Lê Chung" },
+  { id: 5, name: "Nguyễn Duy Cường" },
+  { id: 6, name: "Lê Minh Dương" },
+  { id: 7, name: "Lê Đình Đức" },
+  { id: 8, name: "Hoàng Văn Đặng" },
+  { id: 9, name: "Kim Hậu" },
+  { id: 10, name: "Lê Thị Hằng" },
+  { id: 11, name: "Trần Tuấn Hoài" },
+  { id: 12, name: "Lê Hoa" },
+  { id: 13, name: "Phạm Thu Hồng" },
+  { id: 14, name: "Nguyễn Thị Huệ" },
+  { id: 15, name: "Cao Thị Huyền" },
+  { id: 16, name: "Nguyễn Thị Kiều Loan" },
+  { id: 17, name: "Nguyễn Khắc Long" },
+  { id: 18, name: "Nguyễn Hữu Minh" },
+  { id: 19, name: "Phạm Văn Nam" },
+  { id: 20, name: "Hồ Ninh" },
+  { id: 21, name: "Lê Oanh" },
+  { id: 22, name: "Lê Văn Quyền" },
+  { id: 23, name: "Lê Hoàng Sơn" },
+  { id: 24, name: "Bùi Kim Thúy" },
+  { id: 25, name: "Lê Phương Thảo" },
+  { id: 26, name: "Đoàn Thị Thoáng" },
+  { id: 27, name: "Trịnh Anh Thư" },
+  { id: 28, name: "Nguyễn Thị Thương" },
+  { id: 29, name: "Dương Thị Thúy" },
+  { id: 30, name: "Phan Văn Tùng" },
+  { id: 31, name: "Dương Thủy" },
+  { id: 32, name: "Cao Thị Huyền Trang" },
+  { id: 33, name: "Nguyễn Thanh Thúy" },
+];
+
+function normalize(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+}
+
+type View = "search" | "confirm" | "success";
+
+export default function AttendanceApp() {
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Member | null>(null);
+  const [view, setView] = useState<View>("search");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [checkedAt, setCheckedAt] = useState("");
+
+  const filteredMembers = useMemo(() => {
+    const needle = normalize(query.trim());
+    if (!needle) return members;
+    return members.filter((member) => normalize(member.name).includes(needle));
+  }, [query]);
+
+  function chooseMember(member: Member) {
+    setSelected(member);
+    setError("");
+    setView("confirm");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function reset() {
+    setQuery("");
+    setSelected(null);
+    setView("search");
+    setError("");
+    setCheckedAt("");
+  }
+
+  async function confirmAttendance() {
+    if (!selected || submitting) return;
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId: selected.id, name: selected.name }),
+      });
+      const data = (await response.json()) as { checkedAt?: string; error?: string };
+      if (!response.ok) throw new Error(data.error || "Không thể điểm danh lúc này.");
+
+      const time = data.checkedAt ? new Date(`${data.checkedAt.replace(" ", "T")}Z`) : new Date();
+      setCheckedAt(
+        new Intl.DateTimeFormat("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          timeZone: "Asia/Ho_Chi_Minh",
+        }).format(time),
+      );
+      setView("success");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Có lỗi xảy ra, vui lòng thử lại.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="site-shell">
+      <div className="red-orb red-orb-one" />
+      <div className="red-orb red-orb-two" />
+      <header className="brand-header">
+        <div className="wordmark" aria-label="BNI Mountain">
+          <strong>BNI</strong>
+          <span>MOUNTAIN</span>
+        </div>
+        <div className="meeting-badge"><span>Buổi họp</span><strong>#332</strong></div>
+      </header>
+
+      <section className="attendance-card">
+        {view === "search" && (
+          <>
+            <div className="eyebrow"><span /> Điểm danh thành viên</div>
+            <h1>Chào mừng bạn<br />đã đến buổi họp!</h1>
+            <p className="lead">Tìm và chọn tên của bạn để hoàn tất điểm danh.</p>
+
+            <label className="search-box">
+              <Search size={21} aria-hidden="true" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nhập tên của bạn..." autoComplete="off" autoFocus />
+              {query && <button type="button" onClick={() => setQuery("")} aria-label="Xóa tìm kiếm"><X size={18} /></button>}
+            </label>
+
+            <div className="list-meta"><span>Danh sách thành viên</span><span>{filteredMembers.length} kết quả</span></div>
+            <div className="member-list">
+              {filteredMembers.map((member) => (
+                <button className="member-row" key={member.id} onClick={() => chooseMember(member)}>
+                  <span className="avatar"><UserRound size={20} /></span>
+                  <span>{member.name}</span>
+                  <span className="row-action">Chọn</span>
+                </button>
+              ))}
+              {filteredMembers.length === 0 && (
+                <div className="empty-state"><Search size={26} /><strong>Không tìm thấy tên</strong><span>Hãy thử nhập một phần tên khác.</span></div>
+              )}
+            </div>
+          </>
+        )}
+
+        {view === "confirm" && selected && (
+          <div className="center-panel">
+            <button className="back-button" type="button" onClick={() => setView("search")}><ChevronLeft size={19} /> Quay lại</button>
+            <div className="confirm-icon"><UserRound size={34} /></div>
+            <div className="eyebrow centered"><span /> Xác nhận thông tin <span /></div>
+            <h1>Đây có phải là bạn?</h1>
+            <p className="lead">Vui lòng kiểm tra kỹ tên trước khi xác nhận.</p>
+            <div className="name-ticket"><small>Thành viên</small><strong>{selected.name}</strong><span>BNI Mountain</span></div>
+            {error && <p className="error-message">{error}</p>}
+            <button className="primary-button" type="button" onClick={confirmAttendance} disabled={submitting}>
+              {submitting ? <span className="spinner" /> : <Check size={21} />}
+              {submitting ? "Đang ghi nhận..." : "Xác nhận tôi đã đến"}
+            </button>
+            <button className="text-button" type="button" onClick={() => setView("search")}>Không phải tôi, chọn lại</button>
+          </div>
+        )}
+
+        {view === "success" && selected && (
+          <div className="center-panel success-panel">
+            <div className="success-ring"><Check size={42} strokeWidth={3} /></div>
+            <div className="eyebrow centered"><span /> Hoàn tất <span /></div>
+            <h1>Điểm danh<br />thành công!</h1>
+            <p className="lead">Cảm ơn bạn đã có mặt hôm nay.</p>
+            <div className="success-ticket"><small>Xin chào</small><strong>{selected.name}</strong><span><Check size={15} /> Đã ghi nhận lúc {checkedAt}</span></div>
+            <p className="closing-note">Chúc bạn có một buổi kết nối thật hiệu quả.</p>
+            <button className="secondary-button" type="button" onClick={reset}>Điểm danh người khác</button>
+          </div>
+        )}
+      </section>
+
+      <footer>BNI MOUNTAIN <span>•</span> Kết nối để cùng phát triển</footer>
+    </main>
+  );
+}
