@@ -26,8 +26,13 @@
     </main>
   </div>
 
+  <button class="cart-fab" id="cartButton" type="button" aria-label="Mở giỏ hàng">
+    <span aria-hidden="true">🛒</span><span>Giỏ hàng</span><b id="cartCount">0</b>
+  </button>
+  <div class="cart-toast hidden" id="cartToast" role="status"></div>
+
   <dialog class="detail-dialog" id="detailDialog">
-    <div class="dialog-head"><h3>Mua hàng</h3><button id="closeDetail" aria-label="Đóng">×</button></div>
+    <div class="dialog-head"><h3>Giỏ hàng và đặt hàng</h3><button id="closeDetail" aria-label="Đóng">×</button></div>
     <div class="detail-content" id="detailContent"></div>
   </dialog>
   <script src="script.js"></script>

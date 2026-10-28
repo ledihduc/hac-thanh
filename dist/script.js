@@ -37,6 +37,11 @@ const grid = document.getElementById('productGrid');
 const intro = document.getElementById('brandIntro');
 const dialog = document.getElementById('detailDialog');
 const detailContent = document.getElementById('detailContent');
+const cartButton = document.getElementById('cartButton');
+const cartCount = document.getElementById('cartCount');
+const cartToast = document.getElementById('cartToast');
+const CART_KEY = 'ocopHacThanhCartV1';
+const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwDSUOyxtAEi8ZpNG6_KQlg4jkBcuES0TKk15Fs969_6YmfwJdQVisiCPHHaFGRDCalxg/exec';
 
 intro.className = `brand-heading compact-brand-heading ${group.theme}`;
 intro.innerHTML = `<div><span>DEAL SẢN PHẨM</span><h2>${group.brand}</h2></div><p>${group.subtitle}</p>`;
@@ -53,7 +58,7 @@ function cardReferencePrice(deal) {
 
 grid.innerHTML = group.deals.map((deal,index) => `<article class="product-card deal-product-card ${group.theme}">
   <div class="product-image-wrap"><img class="product-image" src="${deal.image || group.placeholder}" alt="${deal.title}"><span class="discount">${deal.deal}</span><div class="labels">${deal.codes.map(code => `<span class="label ${group.theme === 'huong' ? 'free' : 'ocop'}">Mã ${code}</span>`).join('')}</div></div>
-  <div class="product-body"><div class="product-title">${deal.title}</div><div class="price-line"><span class="price">${deal.price}</span>${cardReferencePrice(deal)}</div><div class="meta"><span class="star">★</span><b>Ưu đãi live</b><span class="meta-separator">|</span><span>${deal.limit}</span></div><div class="shipping-card-note">🚚 Chưa bao gồm phí ship COD</div><div class="card-actions"><button class="detail-btn open-detail buy-button" data-index="${index}" aria-label="Mua ${deal.title}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h2l2.3 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 7H6M10 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm9 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg><span>Mua hàng</span></button></div></div>
+  <div class="product-body"><div class="product-title">${deal.title}</div><div class="price-line"><span class="price">${deal.price}</span>${cardReferencePrice(deal)}</div><div class="meta"><span class="star">★</span><b>Ưu đãi live</b><span class="meta-separator">|</span><span>${deal.limit}</span></div><div class="shipping-card-note">🚚 Chưa bao gồm phí ship COD</div><div class="card-actions"><button class="detail-btn add-cart buy-button" data-index="${index}" aria-label="Thêm ${deal.title} vào giỏ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h2l2.3 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 7H6M10 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm9 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg><span>Mua hàng</span></button></div></div>
 </article>`).join('');
 
 function renderProductInfo(product) {
@@ -61,11 +66,83 @@ function renderProductInfo(product) {
 }
 
 let qrTimer = null;
+let activeOrderId = '';
+let cart = loadCart();
 const vietQrConfig = {
   bank: 'ACB',
   account: '28332441',
   holder: 'DO NGOC VUONG ANH'
 };
+
+function loadCart() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
+    return Array.isArray(stored) ? stored : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveCart() {
+  localStorage.setItem(CART_KEY,JSON.stringify(cart));
+  updateCartBadge();
+}
+
+function updateCartBadge() {
+  const count = cart.reduce((sum,item) => sum + item.quantity,0);
+  cartCount.textContent = String(count);
+  cartButton.classList.toggle('has-items',count > 0);
+}
+
+function showCartToast(message) {
+  cartToast.textContent = message;
+  cartToast.classList.remove('hidden');
+  window.clearTimeout(showCartToast.timer);
+  showCartToast.timer = window.setTimeout(() => cartToast.classList.add('hidden'),1800);
+}
+
+function dealKey(deal,index) {
+  return `${group.key}-${deal.codes[0] || index}`;
+}
+
+function addToCart(index) {
+  const deal = group.deals[index];
+  const key = dealKey(deal,index);
+  const existing = cart.find(item => item.key === key);
+  if (existing) existing.quantity += 1;
+  else cart.push({
+    key,
+    brand: group.brand,
+    theme: group.theme,
+    title: deal.title,
+    code: deal.codes[0] || '',
+    price: numericAmount(deal.price),
+    priceText: deal.price,
+    image: deal.image || group.placeholder,
+    quantity: 1
+  });
+  activeOrderId = '';
+  saveCart();
+  showCartToast(`Đã thêm ${deal.title} vào giỏ`);
+}
+
+function money(value) {
+  return `${new Intl.NumberFormat('vi-VN').format(value)}₫`;
+}
+
+function cartTotal() {
+  return cart.reduce((sum,item) => sum + item.price * item.quantity,0);
+}
+
+function getOrderId() {
+  if (!activeOrderId) activeOrderId = `HC-${Date.now().toString(36).slice(-7).toUpperCase()}`;
+  return activeOrderId;
+}
+
+function cartItemsMarkup() {
+  if (!cart.length) return `<div class="empty-cart"><span>🛒</span><b>Giỏ hàng đang trống</b><p>Đóng cửa sổ này và chọn sản phẩm bạn muốn mua.</p></div>`;
+  return `<section class="cart-block"><h3>Sản phẩm đã chọn</h3><div class="cart-items">${cart.map(item => `<article class="cart-item" data-key="${item.key}"><img src="${item.image}" alt="${item.title}"><div class="cart-item-main"><span>${item.brand}</span><b>${item.title}</b><small>${item.priceText}${item.code ? ` · Mã ${item.code}` : ''}</small></div><div class="quantity-control"><button type="button" data-action="minus" aria-label="Giảm số lượng ${item.title}">−</button><strong>${item.quantity}</strong><button type="button" data-action="plus" aria-label="Tăng số lượng ${item.title}">+</button></div><button class="remove-cart-item" type="button" data-action="remove" aria-label="Xóa ${item.title}">×</button></article>`).join('')}</div><div class="cart-total"><span>Tạm tính</span><b>${money(cartTotal())}</b></div><p class="shipping-notice"><strong>Lưu ý:</strong> Tổng tiền chưa bao gồm phí vận chuyển. Cửa hàng sẽ xác nhận phí ship theo địa chỉ nhận hàng.</p></section>`;
+}
 
 function customerInfoMarkup() {
   return `<section class="customer-block">
@@ -84,25 +161,31 @@ function numericAmount(price) {
   return digits ? Number(digits) : 0;
 }
 
-function paymentMarkup(deal) {
-  const qrAvailable = numericAmount(deal.price) > 0;
+function hasLowValueDeal() {
+  return cart.some(item => item.price > 0 && item.price <= 1000);
+}
+
+function paymentMarkup(amount) {
+  const qrAvailable = amount > 0;
+  const codBlocked = hasLowValueDeal();
+  const codChecked = !codBlocked;
+  const qrChecked = codBlocked && qrAvailable;
   return `<section class="payment-block">
     <h3>Phương thức thanh toán</h3>
     <div class="payment-options">
-      <label class="payment-option active"><input type="radio" name="paymentMethod" value="cod" checked><span class="payment-icon">🚚</span><span><b>Thanh toán COD</b><small>Thanh toán khi nhận hàng</small></span></label>
-      <label class="payment-option ${qrAvailable ? '' : 'disabled'}"><input type="radio" name="paymentMethod" value="qr" ${qrAvailable ? '' : 'disabled'}><span class="payment-icon">▦</span><span><b>Quét mã QR</b><small>${qrAvailable ? 'Mã có hiệu lực trong 5 phút' : 'Không áp dụng cho quà tặng'}</small></span></label>
+      <label class="payment-option ${codChecked ? 'active' : 'disabled'}"><input type="radio" name="paymentMethod" value="cod" ${codChecked ? 'checked' : ''} ${codBlocked ? 'disabled' : ''}><span class="payment-icon">🚚</span><span><b>Thanh toán COD</b><small>${codBlocked ? 'Không áp dụng cho deal 1K' : 'Thanh toán khi nhận hàng'}</small></span></label>
+      <label class="payment-option ${qrChecked ? 'active' : ''} ${qrAvailable ? '' : 'disabled'}"><input type="radio" name="paymentMethod" value="qr" ${qrChecked ? 'checked' : ''} ${qrAvailable ? '' : 'disabled'}><span class="payment-icon">▦</span><span><b>Quét mã QR</b><small>${qrAvailable ? 'Mã có hiệu lực trong 5 phút' : 'Không áp dụng cho quà tặng'}</small></span></label>
     </div>
-    <div class="payment-panel cod-panel"><b>Thanh toán khi nhận hàng</b><p>Bạn thanh toán tiền hàng và phí vận chuyển COD cho đơn vị giao hàng. Phí ship chưa được cộng vào giá sản phẩm.</p></div>
-    <div class="payment-panel qr-panel hidden"><button class="generate-qr" id="generateQr" type="button">Tạo mã QR trong 5 phút</button><div class="qr-result hidden" id="qrResult"><div class="qr-code" id="qrCode"></div><div class="qr-meta"><b id="qrOrder"></b><span id="qrCountdown">05:00</span></div><p>Quét bằng ứng dụng ngân hàng và giữ nguyên nội dung chuyển khoản. Số tiền chỉ gồm tiền sản phẩm; phí ship COD thanh toán riêng. Cửa hàng sẽ đối soát và xác nhận đơn sau khi nhận được giao dịch.</p></div></div>
+    <div class="payment-panel cod-panel ${codChecked ? '' : 'hidden'}"><b>Thanh toán khi nhận hàng</b><p>Bạn thanh toán tiền hàng và phí vận chuyển COD cho đơn vị giao hàng. Phí ship chưa được cộng vào giá sản phẩm.</p></div>
+    <div class="payment-panel qr-panel ${qrChecked ? '' : 'hidden'}"><button class="generate-qr" id="generateQr" type="button">Tạo mã QR trong 5 phút</button><div class="qr-result hidden" id="qrResult"><div class="qr-code" id="qrCode"></div><div class="qr-meta"><b id="qrOrder"></b><span id="qrCountdown">05:00</span></div><p>Quét bằng ứng dụng ngân hàng và giữ nguyên nội dung chuyển khoản. Số tiền chỉ gồm tiền sản phẩm; phí ship COD thanh toán riêng. Cửa hàng sẽ đối soát và xác nhận đơn sau khi nhận được giao dịch.</p></div></div>
     <button class="confirm-order" type="submit">Xác nhận đặt hàng</button>
     <p class="order-feedback hidden" id="orderFeedback" role="status"></p>
   </section>`;
 }
 
-function createQr(deal) {
+function createQr(amount) {
   clearInterval(qrTimer);
-  const amount = numericAmount(deal.price);
-  const orderId = `HC-${Date.now().toString(36).slice(-7).toUpperCase()}`;
+  const orderId = getOrderId();
   const paymentCode = orderId.replace(/[^A-Z0-9]/g,'');
   const expiresAt = Date.now() + 5 * 60 * 1000;
   const qrBox = document.getElementById('qrCode');
@@ -110,7 +193,7 @@ function createQr(deal) {
   const countdown = document.getElementById('qrCountdown');
   qrBox.innerHTML = '';
   result.classList.remove('hidden');
-  document.getElementById('qrOrder').textContent = `Nội dung: ${paymentCode} · ${deal.price}`;
+  document.getElementById('qrOrder').textContent = `Nội dung: ${paymentCode} · ${money(amount)}`;
   const params = new URLSearchParams({
     bank: vietQrConfig.bank,
     acc: vietQrConfig.account,
@@ -146,7 +229,46 @@ function createQr(deal) {
   document.getElementById('generateQr').textContent = 'Tạo lại mã QR 5 phút';
 }
 
-function setupPayment(deal) {
+function refreshCheckout() {
+  openCart(true);
+}
+
+function setupCartControls() {
+  document.querySelectorAll('.cart-item button[data-action]').forEach(button => button.addEventListener('click',() => {
+    const itemElement = button.closest('.cart-item');
+    const item = cart.find(entry => entry.key === itemElement.dataset.key);
+    if (!item) return;
+    if (button.dataset.action === 'plus') item.quantity += 1;
+    if (button.dataset.action === 'minus') item.quantity = Math.max(1,item.quantity - 1);
+    if (button.dataset.action === 'remove') cart = cart.filter(entry => entry.key !== item.key);
+    activeOrderId = '';
+    saveCart();
+    refreshCheckout();
+  }));
+}
+
+async function sendOrder(form,paymentMethod) {
+  if (!ORDER_ENDPOINT.startsWith('https://script.google.com/')) throw new Error('order_endpoint_missing');
+  const orderId = getOrderId();
+  const payload = {
+    source: 'ocop-hac-thanh-live',
+    orderId,
+    createdAt: new Date().toISOString(),
+    customer: {
+      name: form.customerName.value.trim(),
+      phone: form.customerPhone.value.trim(),
+      address: form.customerAddress.value.trim()
+    },
+    paymentMethod,
+    paymentStatus: paymentMethod === 'qr' ? 'QR - Chờ đối soát' : 'COD - Chưa thanh toán',
+    total: cartTotal(),
+    items: cart.map(item => ({brand:item.brand,product:item.title,code:item.code,quantity:item.quantity,unitPrice:item.price}))
+  };
+  await fetch(ORDER_ENDPOINT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  return orderId;
+}
+
+function setupPayment(amount) {
   const form = document.getElementById('purchaseForm');
   const options = document.querySelectorAll('input[name="paymentMethod"]');
   const codPanel = document.querySelector('.cod-panel');
@@ -163,30 +285,57 @@ function setupPayment(deal) {
     const useQr = input.value === 'qr';
     codPanel.classList.toggle('hidden',useQr);
     qrPanel.classList.toggle('hidden',!useQr);
-    if (useQr && document.getElementById('qrResult').classList.contains('hidden') && validateCustomer()) createQr(deal);
+    if (useQr && document.getElementById('qrResult').classList.contains('hidden') && validateCustomer()) createQr(amount);
   }));
-  document.getElementById('generateQr').addEventListener('click',() => { if (validateCustomer()) createQr(deal); });
-  form.addEventListener('submit',event => {
+  document.getElementById('generateQr').addEventListener('click',() => { if (validateCustomer()) createQr(amount); });
+  form.addEventListener('submit',async event => {
     event.preventDefault();
     if (!validateCustomer()) return;
     const paymentMethod = new FormData(form).get('paymentMethod');
-    if (paymentMethod === 'qr' && document.getElementById('qrResult').classList.contains('hidden')) createQr(deal);
-    feedback.textContent = paymentMethod === 'cod'
-      ? 'Đã tiếp nhận thông tin. Cửa hàng sẽ liên hệ xác nhận đơn và phí ship COD.'
-      : 'Thông tin hợp lệ. Vui lòng quét mã QR trong thời gian còn hiệu lực.';
-    feedback.classList.add('success');
-    feedback.classList.remove('hidden');
+    if (paymentMethod === 'qr' && document.getElementById('qrResult').classList.contains('hidden')) createQr(amount);
+    const submitButton = form.querySelector('.confirm-order');
+    submitButton.disabled = true;
+    submitButton.textContent = 'Đang gửi đơn...';
+    try {
+      const orderId = await sendOrder(form,paymentMethod);
+      feedback.textContent = paymentMethod === 'cod'
+        ? `Đã ghi đơn ${orderId}. Cửa hàng sẽ liên hệ xác nhận đơn và phí ship COD.`
+        : `Đã ghi đơn ${orderId}. Vui lòng quét mã QR trong thời gian còn hiệu lực.`;
+      feedback.classList.add('success');
+      feedback.classList.remove('hidden');
+      cart = [];
+      saveCart();
+    } catch (error) {
+      feedback.textContent = error.message === 'order_endpoint_missing'
+        ? 'Kết nối Google Sheet chưa được cấu hình. Vui lòng thử lại sau.'
+        : 'Chưa gửi được đơn hàng. Vui lòng kiểm tra kết nối và thử lại.';
+      feedback.classList.remove('hidden','success');
+      submitButton.disabled = false;
+      submitButton.textContent = 'Gửi đơn hàng';
+    }
   });
 }
 
-function openDetail(index) {
-  const deal = group.deals[index];
-  detailContent.innerHTML = `<form id="purchaseForm"><img class="modal-product-image" src="${deal.image || group.placeholder}" alt="${deal.title}"><div class="modal-brand ${group.theme}">${group.brand}</div><h2>${deal.title}</h2><div class="modal-price">${deal.price}</div><p class="modal-old">${deal.old}</p><div class="deal-codes">${deal.codes.map(code => `<span>Mã ${code}</span>`).join('')}</div>${customerInfoMarkup()}${paymentMarkup(deal)}<h3>Thông tin ưu đãi</h3><ul class="modal-list">${deal.details.map(item => `<li>${item}</li>`).join('')}</ul>${deal.refs.map(ref => renderProductInfo(group.products[ref])).join('')}<h3>Thông tin thương hiệu</h3><div class="modal-facts">${group.facts.map(([label,value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join('')}</div></form>`;
-  dialog.showModal();
-  setupPayment(deal);
+function openCart(refresh = false) {
+  clearInterval(qrTimer);
+  const amount = cartTotal();
+  detailContent.innerHTML = cart.length
+    ? `<form id="purchaseForm">${cartItemsMarkup()}${customerInfoMarkup()}${paymentMarkup(amount)}</form>`
+    : cartItemsMarkup();
+  if (!dialog.open) dialog.showModal();
+  setupCartControls();
+  if (cart.length) setupPayment(amount);
 }
 
-document.querySelectorAll('.open-detail').forEach(button => button.addEventListener('click', () => openDetail(Number(button.dataset.index))));
+document.querySelectorAll('.add-cart').forEach(button => button.addEventListener('click',() => {
+  addToCart(Number(button.dataset.index));
+  const label = button.querySelector('span');
+  const original = label.textContent;
+  label.textContent = 'Đã thêm ✓';
+  window.setTimeout(() => { label.textContent = original; },1000);
+}));
+cartButton.addEventListener('click',() => openCart());
 function closeDialog(){clearInterval(qrTimer);dialog.close()}
 document.getElementById('closeDetail').addEventListener('click',closeDialog);
 dialog.addEventListener('click', event => { if (event.target === dialog) closeDialog(); });
+updateCartBadge();
