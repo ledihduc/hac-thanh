@@ -61,6 +61,11 @@ function renderProductInfo(product) {
 }
 
 let qrTimer = null;
+const vietQrConfig = {
+  bank: 'ACB',
+  account: '28332441',
+  holder: 'DO NGOC VUONG ANH'
+};
 
 function customerInfoMarkup() {
   return `<section class="customer-block">
@@ -88,7 +93,7 @@ function paymentMarkup(deal) {
       <label class="payment-option ${qrAvailable ? '' : 'disabled'}"><input type="radio" name="paymentMethod" value="qr" ${qrAvailable ? '' : 'disabled'}><span class="payment-icon">▦</span><span><b>Quét mã QR</b><small>${qrAvailable ? 'Mã có hiệu lực trong 5 phút' : 'Không áp dụng cho quà tặng'}</small></span></label>
     </div>
     <div class="payment-panel cod-panel"><b>Thanh toán khi nhận hàng</b><p>Bạn thanh toán tiền hàng và phí vận chuyển COD cho đơn vị giao hàng. Phí ship chưa được cộng vào giá sản phẩm.</p></div>
-    <div class="payment-panel qr-panel hidden"><button class="generate-qr" id="generateQr" type="button">Tạo mã QR trong 5 phút</button><div class="qr-result hidden" id="qrResult"><div class="qr-code" id="qrCode"></div><div class="qr-meta"><b id="qrOrder"></b><span id="qrCountdown">05:00</span></div><p>Mã QR thử nghiệm cho đơn hàng này. Cần bổ sung tài khoản ngân hàng để tạo VietQR chuyển khoản thật.</p></div></div>
+    <div class="payment-panel qr-panel hidden"><button class="generate-qr" id="generateQr" type="button">Tạo mã QR trong 5 phút</button><div class="qr-result hidden" id="qrResult"><div class="qr-code" id="qrCode"></div><div class="qr-meta"><b id="qrOrder"></b><span id="qrCountdown">05:00</span></div><p>Quét bằng ứng dụng ngân hàng và giữ nguyên nội dung chuyển khoản. Số tiền chỉ gồm tiền sản phẩm; phí ship COD thanh toán riêng. Cửa hàng sẽ đối soát và xác nhận đơn sau khi nhận được giao dịch.</p></div></div>
     <button class="confirm-order" type="submit">Xác nhận đặt hàng</button>
     <p class="order-feedback hidden" id="orderFeedback" role="status"></p>
   </section>`;
@@ -98,15 +103,31 @@ function createQr(deal) {
   clearInterval(qrTimer);
   const amount = numericAmount(deal.price);
   const orderId = `HC-${Date.now().toString(36).slice(-7).toUpperCase()}`;
+  const paymentCode = orderId.replace(/[^A-Z0-9]/g,'');
   const expiresAt = Date.now() + 5 * 60 * 1000;
   const qrBox = document.getElementById('qrCode');
   const result = document.getElementById('qrResult');
   const countdown = document.getElementById('qrCountdown');
   qrBox.innerHTML = '';
   result.classList.remove('hidden');
-  document.getElementById('qrOrder').textContent = `Mã đơn: ${orderId} · ${deal.price}`;
-  const payload = `HCDEMO|${orderId}|${group.key.toUpperCase()}|${deal.codes[0] || 'LIVE'}|${amount}|${Math.floor(expiresAt / 1000)}`;
-  new QRCode(qrBox,{text:payload,width:210,height:210,colorDark:'#16231c',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+  document.getElementById('qrOrder').textContent = `Nội dung: ${paymentCode} · ${deal.price}`;
+  const params = new URLSearchParams({
+    bank: vietQrConfig.bank,
+    acc: vietQrConfig.account,
+    amount: String(amount),
+    des: paymentCode,
+    template: 'compact',
+    showinfo: 'true',
+    holder: vietQrConfig.holder,
+    store: 'OCOP HAC THANH'
+  });
+  const qrImage = document.createElement('img');
+  qrImage.src = `https://vietqr.app/img?${params.toString()}`;
+  qrImage.alt = `Mã VietQR ACB cho đơn ${orderId}`;
+  qrImage.addEventListener('error',() => {
+    qrBox.innerHTML = '<div class="qr-expired">Không tải được mã QR. Vui lòng thử lại.</div>';
+  });
+  qrBox.appendChild(qrImage);
   const update = () => {
     const left = Math.max(0,expiresAt - Date.now());
     const totalSeconds = Math.ceil(left / 1000);
