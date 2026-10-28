@@ -74,6 +74,7 @@ button { -webkit-tap-highlight-color:transparent; }
 .success-ticket span { display:inline-flex; align-items:center; gap:5px; color:#247248; font-size:12px; font-weight:700; }
 .closing-note { margin:-3px 0 20px; color:#817c76; font-size:13px; }
 .secondary-button { width:auto; height:44px; padding:0 22px; color:var(--red); border:1px solid #eed7dc; background:#fff7f8; box-shadow:none; }
+.device-locked { display:inline-flex; align-items:center; gap:7px; padding:11px 15px; border:1px solid #dcecdf; border-radius:999px; color:#247248; background:#f1faf3; font-size:12px; font-weight:800; }
 footer { position:relative; z-index:1; padding-top:22px; color:#8f8a84; text-align:center; font-size:10px; font-weight:700; letter-spacing:.12em; }
 footer span { padding:0 8px; color:var(--red); }
 

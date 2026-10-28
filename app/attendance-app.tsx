@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, Search, X } from "lucide-react";
 
 type Member = { id: number; name: string };
@@ -55,6 +55,7 @@ function normalize(value: string) {
 }
 
 type View = "search" | "confirm" | "success";
+const DEVICE_LOCK_KEY = "bni-mountain-meeting-332-checkin";
 
 export default function AttendanceApp() {
   const [query, setQuery] = useState("");
@@ -63,6 +64,21 @@ export default function AttendanceApp() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [checkedAt, setCheckedAt] = useState("");
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(DEVICE_LOCK_KEY);
+      if (!saved) return;
+      const record = JSON.parse(saved) as { memberId?: number; name?: string; checkedAt?: string };
+      const member = members.find((item) => item.id === record.memberId && item.name === record.name);
+      if (!member) return;
+      setSelected(member);
+      setCheckedAt(record.checkedAt || "đã ghi nhận");
+      setView("success");
+    } catch {
+      window.localStorage.removeItem(DEVICE_LOCK_KEY);
+    }
+  }, []);
 
   const filteredMembers = useMemo(() => {
     const needle = normalize(query.trim());
@@ -75,14 +91,6 @@ export default function AttendanceApp() {
     setError("");
     setView("confirm");
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function reset() {
-    setQuery("");
-    setSelected(null);
-    setView("search");
-    setError("");
-    setCheckedAt("");
   }
 
   async function confirmAttendance() {
@@ -100,15 +108,18 @@ export default function AttendanceApp() {
       if (!response.ok) throw new Error(data.error || "Không thể điểm danh lúc này.");
 
       const time = data.checkedAt ? new Date(`${data.checkedAt.replace(" ", "T")}Z`) : new Date();
-      setCheckedAt(
-        new Intl.DateTimeFormat("vi-VN", {
+      const formattedTime = new Intl.DateTimeFormat("vi-VN", {
           hour: "2-digit",
           minute: "2-digit",
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
           timeZone: "Asia/Ho_Chi_Minh",
-        }).format(time),
+        }).format(time);
+      setCheckedAt(formattedTime);
+      window.localStorage.setItem(
+        DEVICE_LOCK_KEY,
+        JSON.stringify({ memberId: selected.id, name: selected.name, checkedAt: formattedTime }),
       );
       setView("success");
     } catch (cause) {
@@ -189,7 +200,7 @@ export default function AttendanceApp() {
             <p className="lead">Cảm ơn bạn đã có mặt hôm nay.</p>
             <div className="success-ticket"><small>Xin chào</small><strong>{selected.name}</strong><span><Check size={15} /> Đã ghi nhận lúc {checkedAt}</span></div>
             <p className="closing-note">Chúc bạn có một buổi kết nối thật hiệu quả.</p>
-            <button className="secondary-button" type="button" onClick={reset}>Điểm danh người khác</button>
+            <div className="device-locked"><Check size={16} /> Thiết bị này đã hoàn tất điểm danh</div>
           </div>
         )}
       </section>
