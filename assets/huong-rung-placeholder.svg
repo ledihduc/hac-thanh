@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+  <title id="title">Ảnh sản phẩm Hương Rừng đang cập nhật</title><desc id="desc">Nền xanh và biểu tượng hộp sản phẩm</desc>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#14a46a"/><stop offset="1" stop-color="#055638"/></linearGradient></defs>
+  <rect width="800" height="520" fill="url(#g)"/><path d="M0 360 155 205l86 86 112-145 151 171 92-92 204 173v122H0Z" fill="#fff" opacity=".1"/>
+  <path d="M304 180h192l36 56v154H268V236z" fill="#fffdf1" opacity=".96"/><path d="M304 180l96 62 96-62M400 242v148" fill="none" stroke="#087347" stroke-width="12"/>
+  <path d="M362 137c22-60 78-68 112-54-10 46-51 72-112 54Z" fill="#ffb22e"/><path d="M400 152c-8-43-43-61-72-55 3 38 30 63 72 55Z" fill="#f8dd85"/>
+  <text x="400" y="445" text-anchor="middle" font-family="Arial,sans-serif" font-size="34" font-weight="700" fill="#fff">HƯƠNG RỪNG</text><text x="400" y="482" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" fill="#f7fff9">ẢNH SẢN PHẨM SẼ CẬP NHẬT</text>
+</svg>

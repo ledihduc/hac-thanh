@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#ff4b00" />
+  <title>OCOP Hạc Thành</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-brand="que">
+  <div class="page-shell">
+    <section class="hero" aria-label="Mega Live giới thiệu sản phẩm OCOP Hạc Thành">
+      <img src="assets/hac-thanh-ocop-banner-wide.png" alt="Mega Live giới thiệu sản phẩm OCOP Hạc Thành, voucher giảm đến 25% và freeship cho đơn từ 150.000 đồng" />
+    </section>
+
+    <nav class="brand-tabs" aria-label="Chọn thương hiệu">
+      <a class="active que-tab" href="index.html" aria-current="page">QUẾ FOOD</a>
+      <a class="huong-tab" href="huong-rung.html">HƯƠNG RỪNG</a>
+    </nav>
+
+    <main class="market-wrap">
+      <section class="products-area">
+        <div id="brandIntro"></div>
+        <div class="product-grid catalog-grid" id="productGrid"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="detail-dialog" id="detailDialog">
+    <div class="dialog-head"><h3>Mua hàng</h3><button id="closeDetail" aria-label="Đóng">×</button></div>
+    <div class="detail-content" id="detailContent"></div>
+  </dialog>
+  <script src="assets/qrcode.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
