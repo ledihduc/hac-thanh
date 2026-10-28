@@ -1,9 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronLeft, Search, UserRound, X } from "lucide-react";
+import { Check, ChevronLeft, Search, X } from "lucide-react";
 
 type Member = { id: number; name: string };
+
+function memberImage(id: number) {
+  return `/members/member-${String(id).padStart(2, "0")}.jpg`;
+}
 
 const members: Member[] = [
   { id: 1, name: "Đàm Mai An" },
@@ -119,10 +123,7 @@ export default function AttendanceApp() {
       <div className="red-orb red-orb-one" />
       <div className="red-orb red-orb-two" />
       <header className="brand-header">
-        <div className="wordmark" aria-label="BNI Mountain">
-          <strong>BNI</strong>
-          <span>MOUNTAIN</span>
-        </div>
+        <img className="brand-logo" src="/brand/bni-mountain.jpg" alt="BNI Mountain" />
         <div className="meeting-badge"><span>Buổi họp</span><strong>#332</strong></div>
       </header>
 
@@ -140,12 +141,17 @@ export default function AttendanceApp() {
             </label>
 
             <div className="list-meta"><span>Danh sách thành viên</span><span>{filteredMembers.length} kết quả</span></div>
-            <div className="member-list">
+            <div className="member-grid">
               {filteredMembers.map((member) => (
-                <button className="member-row" key={member.id} onClick={() => chooseMember(member)}>
-                  <span className="avatar"><UserRound size={20} /></span>
-                  <span>{member.name}</span>
-                  <span className="row-action">Chọn</span>
+                <button className="member-card" key={member.id} onClick={() => chooseMember(member)}>
+                  <span className="member-photo-wrap">
+                    <img src={memberImage(member.id)} alt={`Ảnh ${member.name}`} className="member-photo" />
+                    <span className="member-number">{String(member.id).padStart(2, "0")}</span>
+                  </span>
+                  <span className="member-card-body">
+                    <strong>{member.name}</strong>
+                    <span className="row-action">Chọn để điểm danh</span>
+                  </span>
                 </button>
               ))}
               {filteredMembers.length === 0 && (
@@ -158,7 +164,7 @@ export default function AttendanceApp() {
         {view === "confirm" && selected && (
           <div className="center-panel">
             <button className="back-button" type="button" onClick={() => setView("search")}><ChevronLeft size={19} /> Quay lại</button>
-            <div className="confirm-icon"><UserRound size={34} /></div>
+            <div className="confirm-photo-wrap"><img src={memberImage(selected.id)} alt={`Ảnh ${selected.name}`} className="confirm-photo" /></div>
             <div className="eyebrow centered"><span /> Xác nhận thông tin <span /></div>
             <h1>Đây có phải là bạn?</h1>
             <p className="lead">Vui lòng kiểm tra kỹ tên trước khi xác nhận.</p>
@@ -174,7 +180,10 @@ export default function AttendanceApp() {
 
         {view === "success" && selected && (
           <div className="center-panel success-panel">
-            <div className="success-ring"><Check size={42} strokeWidth={3} /></div>
+            <div className="success-avatar">
+              <img src={memberImage(selected.id)} alt={`Ảnh ${selected.name}`} />
+              <span className="success-ring"><Check size={25} strokeWidth={3} /></span>
+            </div>
             <div className="eyebrow centered"><span /> Hoàn tất <span /></div>
             <h1>Điểm danh<br />thành công!</h1>
             <p className="lead">Cảm ơn bạn đã có mặt hôm nay.</p>
