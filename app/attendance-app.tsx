@@ -42,6 +42,7 @@ export default function AttendanceApp() {
   const [view, setView] = useState<View>("search");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [checkedAt, setCheckedAt] = useState("");
   const [deviceCheckin, setDeviceCheckin] = useState<DeviceCheckin | null>(null);
   const [checkedMemberIds, setCheckedMemberIds] = useState<number[]>([]);
@@ -100,6 +101,15 @@ export default function AttendanceApp() {
     setView("search");
   }, [checkedMemberIds, deviceCheckin, statusLoaded]);
 
+  useEffect(() => {
+    if (view !== "confirm" || !selected || !checkedMemberIds.includes(selected.id)) return;
+    setNotice(`${selected.name} đã điểm danh hôm nay.`);
+    setQuery(selected.name);
+    setSelected(null);
+    setView("search");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [checkedMemberIds, selected, view]);
+
   const filteredMembers = useMemo(() => {
     const needle = normalize(query.trim());
     if (!needle) return members;
@@ -110,6 +120,7 @@ export default function AttendanceApp() {
     if (checkedMemberIds.includes(member.id)) return;
     setSelected(member);
     setError("");
+    setNotice("");
     setView("confirm");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -134,7 +145,17 @@ export default function AttendanceApp() {
         error?: string;
       };
       if (!response.ok) {
-        if (response.status === 409) await refreshCheckedMembers();
+        if (response.status === 409) {
+          const member = selected;
+          setCheckedMemberIds((current) => current.includes(member.id) ? current : [...current, member.id]);
+          setNotice(data.error || `${member.name} đã điểm danh hôm nay.`);
+          setQuery(member.name);
+          setSelected(null);
+          setView("search");
+          void refreshCheckedMembers();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
         throw new Error(data.error || "Không thể điểm danh lúc này.");
       }
 
@@ -159,8 +180,9 @@ export default function AttendanceApp() {
       };
       window.localStorage.setItem(DEVICE_LOCK_KEY, JSON.stringify(record));
       setDeviceCheckin(record);
-      await refreshCheckedMembers();
+      setCheckedMemberIds((current) => current.includes(record.memberId) ? current : [...current, record.memberId]);
       setView("success");
+      void refreshCheckedMembers();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Có lỗi xảy ra, vui lòng thử lại.");
     } finally {
@@ -182,6 +204,8 @@ export default function AttendanceApp() {
             <div className="eyebrow"><span /> Điểm danh thành viên</div>
             <h1>Chào mừng bạn<br />đã đến buổi họp!</h1>
             <p className="lead">Tìm và chọn tên của bạn để hoàn tất điểm danh.</p>
+
+            {notice && <p className="status-message"><Check size={17} /> {notice}</p>}
 
             <label className="search-box">
               <Search size={21} aria-hidden="true" />
