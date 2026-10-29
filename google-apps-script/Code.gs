@@ -64,8 +64,14 @@ function doPost(event) {
 function readRows(sheet, attendanceDate) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return [];
-  return sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues()
-    .filter(function (row) { return normalizeDate(row[0]) === attendanceDate; })
+  const range = sheet.getRange(2, 1, lastRow - 1, HEADERS.length);
+  const values = range.getValues();
+  const displayValues = range.getDisplayValues();
+  return values
+    .filter(function (row, index) {
+      return String(displayValues[index][0] || "").trim() === attendanceDate
+        || normalizeDate(row[0]) === attendanceDate;
+    })
     .map(function (row) {
       const checkedAt = row[3] instanceof Date ? row[3] : new Date(row[3]);
       return {
