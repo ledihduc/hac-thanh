@@ -1,4 +1,3 @@
-const SHEET_NAME = "Điểm danh";
 const HEADERS = ["Ngày", "Mã thành viên", "Họ và tên", "Thời gian điểm danh", "Cập nhật lúc"];
 
 function jsonResponse(payload) {
@@ -22,16 +21,27 @@ function doPost(event) {
 
     lock.waitLock(30000);
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = spreadsheet.getSheetByName(SHEET_NAME) || spreadsheet.insertSheet(SHEET_NAME);
-    prepareSheet(sheet);
-    const rows = readRows(sheet, attendanceDate);
+    const sheetName = dailySheetName(attendanceDate);
+    let sheet = spreadsheet.getSheetByName(sheetName);
 
     if (payload.action === "list") {
+      if (!sheet) return jsonResponse({ ok: true, rows: [] });
+      prepareSheet(sheet);
+      const rows = readRows(sheet, attendanceDate);
       return jsonResponse({ ok: true, rows: rows });
     }
     if (payload.action !== "checkin") {
       return jsonResponse({ ok: false, code: "INVALID_ACTION", error: "Thao tác không hợp lệ." });
     }
+
+    if (!sheet) {
+      sheet = spreadsheet.insertSheet(sheetName);
+      prepareSheet(sheet);
+      sortDailySheetsNewestFirst(spreadsheet);
+    } else {
+      prepareSheet(sheet);
+    }
+    const rows = readRows(sheet, attendanceDate);
 
     const memberId = Number(payload.memberId);
     const name = String(payload.name || "");
@@ -59,6 +69,28 @@ function doPost(event) {
   } finally {
     try { lock.releaseLock(); } catch (_) {}
   }
+}
+
+function dailySheetName(attendanceDate) {
+  const parts = attendanceDate.split("-");
+  return parts[2] + "-" + parts[1] + "-" + parts[0];
+}
+
+function sortDailySheetsNewestFirst(spreadsheet) {
+  const dailySheets = spreadsheet.getSheets()
+    .filter(function (sheet) { return /^\d{2}-\d{2}-\d{4}$/.test(sheet.getName()); })
+    .sort(function (left, right) {
+      return sheetNameTimestamp(right.getName()) - sheetNameTimestamp(left.getName());
+    });
+  dailySheets.forEach(function (sheet, index) {
+    spreadsheet.setActiveSheet(sheet);
+    spreadsheet.moveActiveSheet(index + 1);
+  });
+}
+
+function sheetNameTimestamp(name) {
+  const parts = name.split("-").map(Number);
+  return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
 }
 
 function readRows(sheet, attendanceDate) {
