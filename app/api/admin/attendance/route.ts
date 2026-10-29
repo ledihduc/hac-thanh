@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { attendance } from "@/db/schema";
 import { isAdminRequest } from "@/lib/admin-auth";
 import { dateFromRequest } from "@/lib/vietnam-time";
+import { memberNames } from "@/lib/members";
 
 export async function GET(request: Request) {
   if (!isAdminRequest(request)) {
@@ -17,5 +18,8 @@ export async function GET(request: Request) {
     .from(attendance)
     .where(eq(attendance.attendanceDate, date))
     .orderBy(asc(attendance.checkedAt));
-  return Response.json({ date, rows }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json(
+    { date, rows: rows.filter((row) => memberNames.has(row.memberId)) },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }

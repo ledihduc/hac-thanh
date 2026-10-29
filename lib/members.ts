@@ -23,7 +23,6 @@ export const members: Member[] = [
   { id: 20, name: "Hồ Ninh" },
   { id: 21, name: "Lê Oanh" },
   { id: 22, name: "Lê Văn Quyền" },
-  { id: 23, name: "Lê Hoàng Sơn" },
   { id: 24, name: "Bùi Kim Thúy" },
   { id: 25, name: "Lê Phương Thảo" },
   { id: 26, name: "Đoàn Thị Thoáng" },

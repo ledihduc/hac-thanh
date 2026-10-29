@@ -71,7 +71,10 @@ export default function AttendanceApp() {
         return;
       }
       const member = members.find((item) => item.id === record.memberId && item.name === record.name);
-      if (!member) return;
+      if (!member) {
+        window.localStorage.removeItem(DEVICE_LOCK_KEY);
+        return;
+      }
       setSelected(member);
       setCheckedAt(record.checkedAt || "đã ghi nhận");
       setDeviceCheckin(record);
