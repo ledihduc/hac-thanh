@@ -11,11 +11,8 @@ button { -webkit-tap-highlight-color:transparent; }
 .red-orb { position:absolute; border-radius:999px; background:var(--red); filter:blur(1px); pointer-events:none; }
 .red-orb-one { width:260px; height:260px; right:-150px; top:-130px; opacity:.97; }
 .red-orb-two { width:170px; height:170px; left:-115px; bottom:2%; opacity:.08; }
-.brand-header { position:relative; z-index:1; width:min(100%,680px); margin:0 auto; padding:28px 2px 22px; display:flex; align-items:center; justify-content:space-between; }
+.brand-header { position:relative; z-index:1; width:min(100%,680px); margin:0 auto; padding:28px 2px 22px; display:flex; align-items:center; }
 .brand-logo { width:102px; height:62px; object-fit:contain; mix-blend-mode:multiply; }
-.meeting-badge { display:flex; align-items:center; gap:9px; color:#fff; padding:8px 13px; border-radius:999px; background:var(--red); box-shadow:0 9px 25px rgba(200,16,46,.18); }
-.meeting-badge span { font-size:11px; opacity:.86; text-transform:uppercase; letter-spacing:.08em; }
-.meeting-badge strong { font-size:15px; }
 
 .attendance-card { position:relative; z-index:1; width:min(100%,680px); min-height:590px; margin:0 auto; padding:clamp(28px,6vw,58px); border:1px solid rgba(255,255,255,.95); border-radius:28px; background:rgba(255,255,255,.91); box-shadow:0 26px 70px rgba(44,38,35,.11); backdrop-filter:blur(16px); }
 .attendance-card::before { content:""; position:absolute; top:0; left:34px; width:66px; height:4px; border-radius:0 0 5px 5px; background:var(--red); }
@@ -131,7 +128,6 @@ footer span { padding:0 8px; color:var(--red); }
   .site-shell { padding:0 12px 18px; }
   .brand-header { padding:20px 6px 16px; }
   .brand-logo { width:86px; height:52px; }
-  .meeting-badge span { display:none; }
   .attendance-card { min-height:calc(100dvh - 112px); padding:33px 20px 26px; border-radius:23px; }
   .attendance-card h1 { font-size:40px; }
   .member-grid { max-height:calc(100dvh - 380px); min-height:330px; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; }

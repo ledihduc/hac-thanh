@@ -1,18 +1,9 @@
 import { and, eq, sql } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { attendance } from "../../../db/schema";
+import { memberNames } from "../../../lib/members";
 
-const validMembers = new Map<number, string>([
-  [1, "Đàm Mai An"], [2, "Đỗ Ngọc Vương Anh"], [3, "Lê Vân Anh"], [4, "Lê Chung"],
-  [5, "Nguyễn Duy Cường"], [6, "Lê Minh Dương"], [7, "Lê Đình Đức"], [8, "Hoàng Văn Đặng"],
-  [9, "Kim Hậu"], [10, "Lê Thị Hằng"], [11, "Trần Tuấn Hoài"], [12, "Lê Hoa"],
-  [13, "Phạm Thu Hồng"], [14, "Nguyễn Thị Huệ"], [15, "Cao Thị Huyền"], [16, "Nguyễn Thị Kiều Loan"],
-  [17, "Nguyễn Khắc Long"], [18, "Nguyễn Hữu Minh"], [19, "Phạm Văn Nam"], [20, "Hồ Ninh"],
-  [21, "Lê Oanh"], [22, "Lê Văn Quyền"], [23, "Lê Hoàng Sơn"], [24, "Bùi Kim Thúy"],
-  [25, "Lê Phương Thảo"], [26, "Đoàn Thị Thoáng"], [27, "Trịnh Anh Thư"], [28, "Nguyễn Thị Thương"],
-  [29, "Dương Thị Thúy"], [30, "Phan Văn Tùng"], [31, "Dương Thủy"], [32, "Cao Thị Huyền Trang"],
-  [33, "Nguyễn Thanh Thúy"],
-]);
+const validMembers = memberNames;
 
 function todayInVietnam() {
   return new Intl.DateTimeFormat("en-CA", {

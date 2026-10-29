@@ -107,11 +107,11 @@ export default function AdminDashboard() {
       </header>
       <section className="admin-content">
         <div className="admin-heading">
-          <div><p className="admin-kicker">Buổi họp #332</p><h1>Thành viên đã điểm danh</h1><p>Dữ liệu ngày {formatDate(date)}</p></div>
+          <div><p className="admin-kicker">BNI Mountain</p><h1>Thành viên đã điểm danh</h1><p>Dữ liệu ngày {formatDate(date)}</p></div>
           <div className="admin-actions">
             <label className="admin-date-filter"><CalendarDays size={18} /><span>Ngày</span><input type="date" value={date} onChange={(event) => { setDate(event.target.value); void loadAttendance(event.target.value); }} /></label>
             <button type="button" className="admin-refresh" onClick={() => void loadAttendance(date)} disabled={loading}><RefreshCw size={18} className={loading ? "is-spinning" : ""} /> Làm mới</button>
-            <a className="admin-download" href={`/api/admin/export?date=${encodeURIComponent(date)}`}><Download size={18} /> Tải Excel</a>
+            <a className="admin-download" href={`/api/admin/export?date=${encodeURIComponent(date)}`}><Download size={18} /> Tải Excel đầy đủ</a>
           </div>
         </div>
         <div className="admin-summary"><Users size={22} /><div><strong>{rows.length}</strong><span>thành viên đã đến trong ngày</span></div></div>

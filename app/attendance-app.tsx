@@ -2,48 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, Search, X } from "lucide-react";
-
-type Member = { id: number; name: string };
+import { members, type Member } from "@/lib/members";
 
 function memberImage(id: number) {
   return `/members/member-${String(id).padStart(2, "0")}.jpg`;
 }
-
-const members: Member[] = [
-  { id: 1, name: "Đàm Mai An" },
-  { id: 2, name: "Đỗ Ngọc Vương Anh" },
-  { id: 3, name: "Lê Vân Anh" },
-  { id: 4, name: "Lê Chung" },
-  { id: 5, name: "Nguyễn Duy Cường" },
-  { id: 6, name: "Lê Minh Dương" },
-  { id: 7, name: "Lê Đình Đức" },
-  { id: 8, name: "Hoàng Văn Đặng" },
-  { id: 9, name: "Kim Hậu" },
-  { id: 10, name: "Lê Thị Hằng" },
-  { id: 11, name: "Trần Tuấn Hoài" },
-  { id: 12, name: "Lê Hoa" },
-  { id: 13, name: "Phạm Thu Hồng" },
-  { id: 14, name: "Nguyễn Thị Huệ" },
-  { id: 15, name: "Cao Thị Huyền" },
-  { id: 16, name: "Nguyễn Thị Kiều Loan" },
-  { id: 17, name: "Nguyễn Khắc Long" },
-  { id: 18, name: "Nguyễn Hữu Minh" },
-  { id: 19, name: "Phạm Văn Nam" },
-  { id: 20, name: "Hồ Ninh" },
-  { id: 21, name: "Lê Oanh" },
-  { id: 22, name: "Lê Văn Quyền" },
-  { id: 23, name: "Lê Hoàng Sơn" },
-  { id: 24, name: "Bùi Kim Thúy" },
-  { id: 25, name: "Lê Phương Thảo" },
-  { id: 26, name: "Đoàn Thị Thoáng" },
-  { id: 27, name: "Trịnh Anh Thư" },
-  { id: 28, name: "Nguyễn Thị Thương" },
-  { id: 29, name: "Dương Thị Thúy" },
-  { id: 30, name: "Phan Văn Tùng" },
-  { id: 31, name: "Dương Thủy" },
-  { id: 32, name: "Cao Thị Huyền Trang" },
-  { id: 33, name: "Nguyễn Thanh Thúy" },
-];
 
 function normalize(value: string) {
   return value
@@ -205,7 +168,6 @@ export default function AttendanceApp() {
       <div className="red-orb red-orb-two" />
       <header className="brand-header">
         <img className="brand-logo" src="/brand/bni-mountain.jpg" alt="BNI Mountain" />
-        <div className="meeting-badge"><span>Buổi họp</span><strong>#332</strong></div>
       </header>
 
       <section className="attendance-card">
