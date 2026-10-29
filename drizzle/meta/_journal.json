@@ -8,6 +8,13 @@
       "when": 1793151340719,
       "tag": "0000_whole_wendigo",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793248055667,
+      "tag": "0001_lumpy_gorilla_man",
+      "breakpoints": true
     }
   ]
 }

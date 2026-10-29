@@ -57,6 +57,23 @@ function normalize(value: string) {
 type View = "search" | "confirm" | "success";
 const DEVICE_LOCK_KEY = "bni-mountain-meeting-332-checkin";
 
+type DeviceCheckin = {
+  memberId: number;
+  name: string;
+  checkedAt: string;
+  attendanceDate: string;
+  correctionToken?: string;
+};
+
+function todayInVietnam() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 export default function AttendanceApp() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Member | null>(null);
@@ -64,16 +81,23 @@ export default function AttendanceApp() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [checkedAt, setCheckedAt] = useState("");
+  const [deviceCheckin, setDeviceCheckin] = useState<DeviceCheckin | null>(null);
+  const [isCorrecting, setIsCorrecting] = useState(false);
 
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(DEVICE_LOCK_KEY);
       if (!saved) return;
-      const record = JSON.parse(saved) as { memberId?: number; name?: string; checkedAt?: string };
+      const record = JSON.parse(saved) as DeviceCheckin;
+      if (record.attendanceDate !== todayInVietnam()) {
+        window.localStorage.removeItem(DEVICE_LOCK_KEY);
+        return;
+      }
       const member = members.find((item) => item.id === record.memberId && item.name === record.name);
       if (!member) return;
       setSelected(member);
       setCheckedAt(record.checkedAt || "đã ghi nhận");
+      setDeviceCheckin(record);
       setView("success");
     } catch {
       window.localStorage.removeItem(DEVICE_LOCK_KEY);
@@ -93,6 +117,16 @@ export default function AttendanceApp() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function startCorrection() {
+    if (!deviceCheckin?.correctionToken) return;
+    setIsCorrecting(true);
+    setQuery("");
+    setSelected(null);
+    setError("");
+    setView("search");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function confirmAttendance() {
     if (!selected || submitting) return;
     setSubmitting(true);
@@ -102,9 +136,20 @@ export default function AttendanceApp() {
       const response = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId: selected.id, name: selected.name }),
+        body: JSON.stringify({
+          memberId: selected.id,
+          name: selected.name,
+          ...(isCorrecting && deviceCheckin
+            ? { previousMemberId: deviceCheckin.memberId, correctionToken: deviceCheckin.correctionToken }
+            : {}),
+        }),
       });
-      const data = (await response.json()) as { checkedAt?: string; error?: string };
+      const data = (await response.json()) as {
+        checkedAt?: string;
+        attendanceDate?: string;
+        correctionToken?: string;
+        error?: string;
+      };
       if (!response.ok) throw new Error(data.error || "Không thể điểm danh lúc này.");
 
       const time = data.checkedAt ? new Date(`${data.checkedAt.replace(" ", "T")}Z`) : new Date();
@@ -117,10 +162,16 @@ export default function AttendanceApp() {
           timeZone: "Asia/Ho_Chi_Minh",
         }).format(time);
       setCheckedAt(formattedTime);
-      window.localStorage.setItem(
-        DEVICE_LOCK_KEY,
-        JSON.stringify({ memberId: selected.id, name: selected.name, checkedAt: formattedTime }),
-      );
+      const record: DeviceCheckin = {
+        memberId: selected.id,
+        name: selected.name,
+        checkedAt: formattedTime,
+        attendanceDate: data.attendanceDate || todayInVietnam(),
+        correctionToken: data.correctionToken,
+      };
+      window.localStorage.setItem(DEVICE_LOCK_KEY, JSON.stringify(record));
+      setDeviceCheckin(record);
+      setIsCorrecting(false);
       setView("success");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Có lỗi xảy ra, vui lòng thử lại.");
@@ -141,6 +192,7 @@ export default function AttendanceApp() {
       <section className="attendance-card">
         {view === "search" && (
           <>
+            {isCorrecting && <div className="device-locked">Bạn đang sửa người đã điểm danh hôm nay</div>}
             <div className="eyebrow"><span /> Điểm danh thành viên</div>
             <h1>Chào mừng bạn<br />đã đến buổi họp!</h1>
             <p className="lead">Tìm và chọn tên của bạn để hoàn tất điểm danh.</p>
@@ -183,7 +235,7 @@ export default function AttendanceApp() {
             {error && <p className="error-message">{error}</p>}
             <button className="primary-button" type="button" onClick={confirmAttendance} disabled={submitting}>
               {submitting ? <span className="spinner" /> : <Check size={21} />}
-              {submitting ? "Đang ghi nhận..." : "Xác nhận tôi đã đến"}
+              {submitting ? "Đang ghi nhận..." : isCorrecting ? "Xác nhận thay đổi" : "Xác nhận tôi đã đến"}
             </button>
             <button className="text-button" type="button" onClick={() => setView("search")}>Không phải tôi, chọn lại</button>
           </div>
@@ -200,7 +252,10 @@ export default function AttendanceApp() {
             <p className="lead">Cảm ơn bạn đã có mặt hôm nay.</p>
             <div className="success-ticket"><small>Xin chào</small><strong>{selected.name}</strong><span><Check size={15} /> Đã ghi nhận lúc {checkedAt}</span></div>
             <p className="closing-note">Chúc bạn có một buổi kết nối thật hiệu quả.</p>
-            <div className="device-locked"><Check size={16} /> Thiết bị này đã hoàn tất điểm danh</div>
+            <div className="device-locked"><Check size={16} /> Đã điểm danh hôm nay</div>
+            {deviceCheckin?.correctionToken && (
+              <button className="text-button" type="button" onClick={startCorrection}>Tôi chọn nhầm, sửa lại</button>
+            )}
           </div>
         )}
       </section>

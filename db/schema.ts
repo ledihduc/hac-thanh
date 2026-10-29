@@ -1,9 +1,18 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-export const attendance = sqliteTable("attendance", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  memberId: integer("member_id").notNull().unique(),
-  name: text("name").notNull(),
-  checkedAt: text("checked_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+export const attendance = sqliteTable(
+  "attendance",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    memberId: integer("member_id").notNull(),
+    name: text("name").notNull(),
+    attendanceDate: text("attendance_date").notNull(),
+    checkedAt: text("checked_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    correctionToken: text("correction_token"),
+  },
+  (table) => [
+    uniqueIndex("attendance_member_day_unique").on(table.memberId, table.attendanceDate),
+    uniqueIndex("attendance_correction_token_unique").on(table.correctionToken),
+  ],
+);
