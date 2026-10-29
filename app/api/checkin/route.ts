@@ -14,6 +14,32 @@ const validMembers = new Map<number, string>([
   [33, "Nguyễn Thanh Thúy"],
 ]);
 
+function todayInVietnam() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+export async function GET() {
+  try {
+    const attendanceDate = todayInVietnam();
+    const rows = await getDb()
+      .select({ memberId: attendance.memberId })
+      .from(attendance)
+      .where(eq(attendance.attendanceDate, attendanceDate));
+
+    return Response.json(
+      { attendanceDate, checkedMemberIds: rows.map((row) => row.memberId) },
+      { headers: { "Cache-Control": "no-store, max-age=0" } },
+    );
+  } catch {
+    return Response.json({ error: "Chưa thể tải danh sách điểm danh." }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as {
@@ -24,12 +50,7 @@ export async function POST(request: Request) {
     };
     const memberId = Number(payload.memberId);
     const canonicalName = validMembers.get(memberId);
-    const attendanceDate = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
+    const attendanceDate = todayInVietnam();
 
     if (!canonicalName || payload.name !== canonicalName) {
       return Response.json({ error: "Thông tin thành viên không hợp lệ." }, { status: 400 });
@@ -99,11 +120,7 @@ export async function POST(request: Request) {
       .where(and(eq(attendance.memberId, memberId), eq(attendance.attendanceDate, attendanceDate)))
       .limit(1);
     if (existing[0]) {
-      return Response.json({
-        checkedAt: existing[0].checkedAt,
-        attendanceDate,
-        alreadyCheckedIn: true,
-      });
+      return Response.json({ error: `${canonicalName} đã điểm danh hôm nay.` }, { status: 409 });
     }
 
     const correctionToken = crypto.randomUUID();

@@ -83,8 +83,22 @@ export default function AttendanceApp() {
   const [checkedAt, setCheckedAt] = useState("");
   const [deviceCheckin, setDeviceCheckin] = useState<DeviceCheckin | null>(null);
   const [isCorrecting, setIsCorrecting] = useState(false);
+  const [checkedMemberIds, setCheckedMemberIds] = useState<number[]>([]);
+
+  async function refreshCheckedMembers() {
+    try {
+      const response = await fetch("/api/checkin", { cache: "no-store" });
+      const data = (await response.json()) as { checkedMemberIds?: number[] };
+      if (response.ok && Array.isArray(data.checkedMemberIds)) {
+        setCheckedMemberIds(data.checkedMemberIds);
+      }
+    } catch {
+      // The server still enforces uniqueness if the public status list is temporarily unavailable.
+    }
+  }
 
   useEffect(() => {
+    void refreshCheckedMembers();
     try {
       const saved = window.localStorage.getItem(DEVICE_LOCK_KEY);
       if (!saved) return;
@@ -111,6 +125,7 @@ export default function AttendanceApp() {
   }, [query]);
 
   function chooseMember(member: Member) {
+    if (checkedMemberIds.includes(member.id)) return;
     setSelected(member);
     setError("");
     setView("confirm");
@@ -150,7 +165,10 @@ export default function AttendanceApp() {
         correctionToken?: string;
         error?: string;
       };
-      if (!response.ok) throw new Error(data.error || "Không thể điểm danh lúc này.");
+      if (!response.ok) {
+        if (response.status === 409) await refreshCheckedMembers();
+        throw new Error(data.error || "Không thể điểm danh lúc này.");
+      }
 
       const time = data.checkedAt ? new Date(`${data.checkedAt.replace(" ", "T")}Z`) : new Date();
       const formattedTime = new Intl.DateTimeFormat("vi-VN", {
@@ -171,6 +189,7 @@ export default function AttendanceApp() {
       };
       window.localStorage.setItem(DEVICE_LOCK_KEY, JSON.stringify(record));
       setDeviceCheckin(record);
+      await refreshCheckedMembers();
       setIsCorrecting(false);
       setView("success");
     } catch (cause) {
@@ -206,14 +225,21 @@ export default function AttendanceApp() {
             <div className="list-meta"><span>Danh sách thành viên</span><span>{filteredMembers.length} kết quả</span></div>
             <div className="member-grid">
               {filteredMembers.map((member) => (
-                <button className="member-card" key={member.id} onClick={() => chooseMember(member)}>
+                <button
+                  className={`member-card${checkedMemberIds.includes(member.id) ? " is-checked" : ""}`}
+                  key={member.id}
+                  onClick={() => chooseMember(member)}
+                  disabled={checkedMemberIds.includes(member.id)}
+                  aria-label={checkedMemberIds.includes(member.id) ? `${member.name} đã điểm danh hôm nay` : `Điểm danh ${member.name}`}
+                >
                   <span className="member-photo-wrap">
                     <img src={memberImage(member.id)} alt={`Ảnh ${member.name}`} className="member-photo" />
                     <span className="member-number">{String(member.id).padStart(2, "0")}</span>
+                    {checkedMemberIds.includes(member.id) && <span className="checked-badge"><Check size={13} /> Đã điểm danh</span>}
                   </span>
                   <span className="member-card-body">
                     <strong>{member.name}</strong>
-                    <span className="row-action">Chọn để điểm danh</span>
+                    <span className="row-action">{checkedMemberIds.includes(member.id) ? "Đã ghi nhận hôm nay" : "Chọn để điểm danh"}</span>
                   </span>
                 </button>
               ))}
