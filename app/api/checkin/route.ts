@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { attendance } from "../../../db/schema";
 import { memberNames } from "../../../lib/members";
+import { retryPendingGoogleSheetSync, syncAttendanceRow } from "../../../lib/google-sheets";
 
 const validMembers = memberNames;
 
@@ -17,6 +18,7 @@ function todayInVietnam() {
 export async function GET() {
   try {
     const attendanceDate = todayInVietnam();
+    await retryPendingGoogleSheetSync(attendanceDate);
     const rows = await getDb()
       .select({ memberId: attendance.memberId })
       .from(attendance)
@@ -93,9 +95,17 @@ export async function POST(request: Request) {
 
       const updated = await db
         .update(attendance)
-        .set({ memberId, name: canonicalName, checkedAt: sql`CURRENT_TIMESTAMP` })
+        .set({
+          memberId,
+          name: canonicalName,
+          checkedAt: sql`CURRENT_TIMESTAMP`,
+          sheetSyncedAt: null,
+          sheetSyncError: null,
+          sheetPreviousMemberId: previousMemberId,
+        })
         .where(eq(attendance.id, previous[0].id))
         .returning();
+      await syncAttendanceRow(updated[0]);
       return Response.json({
         checkedAt: updated[0].checkedAt,
         attendanceDate,
@@ -119,6 +129,7 @@ export async function POST(request: Request) {
       .insert(attendance)
       .values({ memberId, name: canonicalName, attendanceDate, correctionToken })
       .returning();
+    await syncAttendanceRow(inserted[0]);
     return Response.json(
       { checkedAt: inserted[0].checkedAt, attendanceDate, correctionToken, alreadyCheckedIn: false },
       { status: 201 },

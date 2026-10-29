@@ -10,6 +10,9 @@ export const attendance = sqliteTable(
     attendanceDate: text("attendance_date").notNull(),
     checkedAt: text("checked_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     correctionToken: text("correction_token"),
+    sheetSyncedAt: text("sheet_synced_at"),
+    sheetSyncError: text("sheet_sync_error"),
+    sheetPreviousMemberId: integer("sheet_previous_member_id"),
   },
   (table) => [
     uniqueIndex("attendance_member_day_unique").on(table.memberId, table.attendanceDate),
