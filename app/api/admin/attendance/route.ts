@@ -1,7 +1,5 @@
-import { asc, eq } from "drizzle-orm";
-import { getDb } from "@/db";
-import { attendance } from "@/db/schema";
 import { isAdminRequest } from "@/lib/admin-auth";
+import { listGoogleSheetAttendance } from "@/lib/google-sheets";
 import { dateFromRequest } from "@/lib/vietnam-time";
 import { memberNames } from "@/lib/members";
 
@@ -13,13 +11,18 @@ export async function GET(request: Request) {
   if (!date) {
     return Response.json({ error: "Ngày cần xem không hợp lệ." }, { status: 400 });
   }
-  const rows = await getDb()
-    .select({ memberId: attendance.memberId, name: attendance.name, checkedAt: attendance.checkedAt })
-    .from(attendance)
-    .where(eq(attendance.attendanceDate, date))
-    .orderBy(asc(attendance.checkedAt));
-  return Response.json(
-    { date, rows: rows.filter((row) => memberNames.has(row.memberId)) },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+  try {
+    const rows = await listGoogleSheetAttendance(date);
+    return Response.json(
+      {
+        date,
+        rows: rows
+          .filter((row) => memberNames.has(row.memberId))
+          .sort((left, right) => left.checkedAt.localeCompare(right.checkedAt)),
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch {
+    return Response.json({ error: "Không thể tải dữ liệu từ Google Sheet." }, { status: 503 });
+  }
 }

@@ -1,8 +1,9 @@
-import { and, eq, sql } from "drizzle-orm";
-import { getDb } from "../../../db";
-import { attendance } from "../../../db/schema";
 import { memberNames } from "../../../lib/members";
-import { retryPendingGoogleSheetSync, syncAttendanceRow } from "../../../lib/google-sheets";
+import {
+  createGoogleSheetAttendance,
+  GoogleSheetError,
+  listGoogleSheetAttendance,
+} from "../../../lib/google-sheets";
 
 const validMembers = memberNames;
 
@@ -18,29 +19,21 @@ function todayInVietnam() {
 export async function GET() {
   try {
     const attendanceDate = todayInVietnam();
-    await retryPendingGoogleSheetSync(attendanceDate);
-    const rows = await getDb()
-      .select({ memberId: attendance.memberId })
-      .from(attendance)
-      .where(eq(attendance.attendanceDate, attendanceDate));
+    const rows = await listGoogleSheetAttendance(attendanceDate);
+    const checkedMemberIds = [...new Set(rows.map((row) => row.memberId).filter((id) => validMembers.has(id)))];
 
     return Response.json(
-      { attendanceDate, checkedMemberIds: rows.map((row) => row.memberId) },
+      { attendanceDate, checkedMemberIds },
       { headers: { "Cache-Control": "no-store, max-age=0" } },
     );
   } catch {
-    return Response.json({ error: "Chưa thể tải danh sách điểm danh." }, { status: 500 });
+    return Response.json({ error: "Chưa thể tải danh sách điểm danh từ Google Sheet." }, { status: 503 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as {
-      memberId?: number;
-      name?: string;
-      previousMemberId?: number;
-      correctionToken?: string;
-    };
+    const payload = (await request.json()) as { memberId?: number; name?: string };
     const memberId = Number(payload.memberId);
     const canonicalName = validMembers.get(memberId);
     const attendanceDate = todayInVietnam();
@@ -49,96 +42,22 @@ export async function POST(request: Request) {
       return Response.json({ error: "Thông tin thành viên không hợp lệ." }, { status: 400 });
     }
 
-    const db = getDb();
-    const isCorrection = payload.previousMemberId !== undefined || payload.correctionToken !== undefined;
-
-    if (isCorrection) {
-      const previousMemberId = Number(payload.previousMemberId);
-      const correctionToken = payload.correctionToken;
-      if (!validMembers.has(previousMemberId) || !correctionToken) {
-        return Response.json({ error: "Không thể xác thực lần điểm danh cần sửa." }, { status: 400 });
-      }
-
-      const previous = await db
-        .select()
-        .from(attendance)
-        .where(
-          and(
-            eq(attendance.memberId, previousMemberId),
-            eq(attendance.attendanceDate, attendanceDate),
-            eq(attendance.correctionToken, correctionToken),
-          ),
-        )
-        .limit(1);
-
-      if (!previous[0]) {
-        return Response.json({ error: "Lần điểm danh này không còn hiệu lực để sửa." }, { status: 403 });
-      }
-
-      if (previousMemberId === memberId) {
-        return Response.json({
-          checkedAt: previous[0].checkedAt,
-          attendanceDate,
-          correctionToken,
-          alreadyCheckedIn: true,
-        });
-      }
-
-      const target = await db
-        .select({ id: attendance.id })
-        .from(attendance)
-        .where(and(eq(attendance.memberId, memberId), eq(attendance.attendanceDate, attendanceDate)))
-        .limit(1);
-      if (target[0]) {
-        return Response.json({ error: `${canonicalName} đã được điểm danh hôm nay.` }, { status: 409 });
-      }
-
-      const updated = await db
-        .update(attendance)
-        .set({
-          memberId,
-          name: canonicalName,
-          checkedAt: sql`CURRENT_TIMESTAMP`,
-          sheetSyncedAt: null,
-          sheetSyncError: null,
-          sheetPreviousMemberId: previousMemberId,
-        })
-        .where(eq(attendance.id, previous[0].id))
-        .returning();
-      await syncAttendanceRow(updated[0]);
-      return Response.json({
-        checkedAt: updated[0].checkedAt,
-        attendanceDate,
-        correctionToken,
-        alreadyCheckedIn: false,
-        corrected: true,
-      });
-    }
-
-    const existing = await db
-      .select()
-      .from(attendance)
-      .where(and(eq(attendance.memberId, memberId), eq(attendance.attendanceDate, attendanceDate)))
-      .limit(1);
-    if (existing[0]) {
-      return Response.json({ error: `${canonicalName} đã điểm danh hôm nay.` }, { status: 409 });
-    }
-
-    const correctionToken = crypto.randomUUID();
-    const inserted = await db
-      .insert(attendance)
-      .values({ memberId, name: canonicalName, attendanceDate, correctionToken })
-      .returning();
-    await syncAttendanceRow(inserted[0]);
+    const result = await createGoogleSheetAttendance({
+      attendanceDate,
+      memberId,
+      name: canonicalName,
+    });
     return Response.json(
-      { checkedAt: inserted[0].checkedAt, attendanceDate, correctionToken, alreadyCheckedIn: false },
+      { checkedAt: result.checkedAt, attendanceDate, alreadyCheckedIn: false },
       { status: 201 },
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unexpected error";
-    if (message.includes("UNIQUE constraint failed")) {
-      return Response.json({ error: "Thành viên đã được điểm danh hôm nay." }, { status: 409 });
+    if (error instanceof GoogleSheetError && error.code === "ALREADY_CHECKED_IN") {
+      return Response.json({ error: error.message }, { status: 409 });
     }
-    return Response.json({ error: "Hệ thống chưa thể ghi nhận. Vui lòng thử lại." }, { status: 500 });
+    return Response.json(
+      { error: "Chưa thể ghi nhận vào Google Sheet. Vui lòng thử lại." },
+      { status: 503 },
+    );
   }
 }

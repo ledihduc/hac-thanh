@@ -12,52 +12,69 @@ function doPost(event) {
     const payload = JSON.parse(event.postData.contents || "{}");
     const expectedSecret = PropertiesService.getScriptProperties().getProperty("BNI_SYNC_SECRET");
     if (!expectedSecret || payload.secret !== expectedSecret) {
-      return jsonResponse({ ok: false, error: "Không có quyền đồng bộ." });
+      return jsonResponse({ ok: false, code: "UNAUTHORIZED", error: "Không có quyền truy cập dữ liệu." });
     }
 
     const attendanceDate = String(payload.attendanceDate || "");
-    const memberId = Number(payload.memberId);
-    const name = String(payload.name || "");
-    const checkedAt = new Date(payload.checkedAt);
-    const previousMemberId = payload.previousMemberId == null ? null : Number(payload.previousMemberId);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(attendanceDate) || !memberId || !name || isNaN(checkedAt.getTime())) {
-      return jsonResponse({ ok: false, error: "Dữ liệu điểm danh không hợp lệ." });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(attendanceDate)) {
+      return jsonResponse({ ok: false, code: "INVALID_DATE", error: "Ngày điểm danh không hợp lệ." });
     }
 
     lock.waitLock(30000);
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = spreadsheet.getSheetByName(SHEET_NAME) || spreadsheet.insertSheet(SHEET_NAME);
     prepareSheet(sheet);
+    const rows = readRows(sheet, attendanceDate);
 
-    const lastRow = sheet.getLastRow();
-    const values = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues() : [];
-    let targetRow = -1;
-    let previousRow = -1;
-    values.forEach(function (row, index) {
-      const rowNumber = index + 2;
-      const rowDate = normalizeDate(row[0]);
-      const rowMemberId = Number(row[1]);
-      if (rowDate === attendanceDate && rowMemberId === memberId) targetRow = rowNumber;
-      if (previousMemberId && rowDate === attendanceDate && rowMemberId === previousMemberId) previousRow = rowNumber;
-    });
-
-    const output = [attendanceDate, memberId, name, checkedAt, new Date()];
-    if (targetRow > 0) {
-      sheet.getRange(targetRow, 1, 1, HEADERS.length).setValues([output]);
-      if (previousRow > 0 && previousRow !== targetRow) sheet.deleteRow(previousRow);
-    } else if (previousRow > 0) {
-      sheet.getRange(previousRow, 1, 1, HEADERS.length).setValues([output]);
-    } else {
-      sheet.appendRow(output);
+    if (payload.action === "list") {
+      return jsonResponse({ ok: true, rows: rows });
+    }
+    if (payload.action !== "checkin") {
+      return jsonResponse({ ok: false, code: "INVALID_ACTION", error: "Thao tác không hợp lệ." });
     }
 
+    const memberId = Number(payload.memberId);
+    const name = String(payload.name || "");
+    if (!memberId || !name) {
+      return jsonResponse({ ok: false, code: "INVALID_MEMBER", error: "Thông tin thành viên không hợp lệ." });
+    }
+    if (rows.some(function (row) { return row.memberId === memberId; })) {
+      return jsonResponse({
+        ok: false,
+        code: "ALREADY_CHECKED_IN",
+        error: name + " đã điểm danh hôm nay.",
+      });
+    }
+
+    const checkedAt = new Date();
+    sheet.appendRow([attendanceDate, memberId, name, checkedAt, new Date()]);
     formatSheet(sheet);
-    return jsonResponse({ ok: true });
+    return jsonResponse({ ok: true, checkedAt: checkedAt.toISOString() });
   } catch (error) {
-    return jsonResponse({ ok: false, error: String(error && error.message ? error.message : error) });
+    return jsonResponse({
+      ok: false,
+      code: "INTERNAL_ERROR",
+      error: String(error && error.message ? error.message : error),
+    });
   } finally {
     try { lock.releaseLock(); } catch (_) {}
   }
+}
+
+function readRows(sheet, attendanceDate) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
+  return sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues()
+    .filter(function (row) { return normalizeDate(row[0]) === attendanceDate; })
+    .map(function (row) {
+      const checkedAt = row[3] instanceof Date ? row[3] : new Date(row[3]);
+      return {
+        memberId: Number(row[1]),
+        name: String(row[2] || ""),
+        checkedAt: isNaN(checkedAt.getTime()) ? "" : checkedAt.toISOString(),
+      };
+    })
+    .filter(function (row) { return row.memberId && row.name && row.checkedAt; });
 }
 
 function normalizeDate(value) {

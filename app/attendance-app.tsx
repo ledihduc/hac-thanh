@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, Search, X } from "lucide-react";
 import { members, type Member } from "@/lib/members";
 
@@ -25,7 +25,6 @@ type DeviceCheckin = {
   name: string;
   checkedAt: string;
   attendanceDate: string;
-  correctionToken?: string;
 };
 
 function todayInVietnam() {
@@ -45,23 +44,31 @@ export default function AttendanceApp() {
   const [error, setError] = useState("");
   const [checkedAt, setCheckedAt] = useState("");
   const [deviceCheckin, setDeviceCheckin] = useState<DeviceCheckin | null>(null);
-  const [isCorrecting, setIsCorrecting] = useState(false);
   const [checkedMemberIds, setCheckedMemberIds] = useState<number[]>([]);
+  const [statusLoaded, setStatusLoaded] = useState(false);
 
-  async function refreshCheckedMembers() {
+  const refreshCheckedMembers = useCallback(async () => {
     try {
       const response = await fetch("/api/checkin", { cache: "no-store" });
       const data = (await response.json()) as { checkedMemberIds?: number[] };
       if (response.ok && Array.isArray(data.checkedMemberIds)) {
         setCheckedMemberIds(data.checkedMemberIds);
+        setStatusLoaded(true);
+        return data.checkedMemberIds;
       }
     } catch {
-      // The server still enforces uniqueness if the public status list is temporarily unavailable.
+      // Điểm danh mới sẽ bị chặn an toàn nếu Google Sheet tạm thời không truy cập được.
     }
-  }
+    return null;
+  }, []);
 
   useEffect(() => {
     void refreshCheckedMembers();
+    const interval = window.setInterval(() => void refreshCheckedMembers(), 10_000);
+    return () => window.clearInterval(interval);
+  }, [refreshCheckedMembers]);
+
+  useEffect(() => {
     try {
       const saved = window.localStorage.getItem(DEVICE_LOCK_KEY);
       if (!saved) return;
@@ -84,6 +91,15 @@ export default function AttendanceApp() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!statusLoaded || !deviceCheckin || checkedMemberIds.includes(deviceCheckin.memberId)) return;
+    window.localStorage.removeItem(DEVICE_LOCK_KEY);
+    setDeviceCheckin(null);
+    setSelected(null);
+    setCheckedAt("");
+    setView("search");
+  }, [checkedMemberIds, deviceCheckin, statusLoaded]);
+
   const filteredMembers = useMemo(() => {
     const needle = normalize(query.trim());
     if (!needle) return members;
@@ -95,16 +111,6 @@ export default function AttendanceApp() {
     setSelected(member);
     setError("");
     setView("confirm");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function startCorrection() {
-    if (!deviceCheckin?.correctionToken) return;
-    setIsCorrecting(true);
-    setQuery("");
-    setSelected(null);
-    setError("");
-    setView("search");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -120,15 +126,11 @@ export default function AttendanceApp() {
         body: JSON.stringify({
           memberId: selected.id,
           name: selected.name,
-          ...(isCorrecting && deviceCheckin
-            ? { previousMemberId: deviceCheckin.memberId, correctionToken: deviceCheckin.correctionToken }
-            : {}),
         }),
       });
       const data = (await response.json()) as {
         checkedAt?: string;
         attendanceDate?: string;
-        correctionToken?: string;
         error?: string;
       };
       if (!response.ok) {
@@ -136,7 +138,10 @@ export default function AttendanceApp() {
         throw new Error(data.error || "Không thể điểm danh lúc này.");
       }
 
-      const time = data.checkedAt ? new Date(`${data.checkedAt.replace(" ", "T")}Z`) : new Date();
+      const rawCheckedAt = data.checkedAt || "";
+      const time = rawCheckedAt
+        ? new Date(/[zZ]|[+-]\d\d:\d\d$/.test(rawCheckedAt) ? rawCheckedAt : `${rawCheckedAt.replace(" ", "T")}Z`)
+        : new Date();
       const formattedTime = new Intl.DateTimeFormat("vi-VN", {
           hour: "2-digit",
           minute: "2-digit",
@@ -151,12 +156,10 @@ export default function AttendanceApp() {
         name: selected.name,
         checkedAt: formattedTime,
         attendanceDate: data.attendanceDate || todayInVietnam(),
-        correctionToken: data.correctionToken,
       };
       window.localStorage.setItem(DEVICE_LOCK_KEY, JSON.stringify(record));
       setDeviceCheckin(record);
       await refreshCheckedMembers();
-      setIsCorrecting(false);
       setView("success");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Có lỗi xảy ra, vui lòng thử lại.");
@@ -176,7 +179,6 @@ export default function AttendanceApp() {
       <section className="attendance-card">
         {view === "search" && (
           <>
-            {isCorrecting && <div className="device-locked">Bạn đang sửa người đã điểm danh hôm nay</div>}
             <div className="eyebrow"><span /> Điểm danh thành viên</div>
             <h1>Chào mừng bạn<br />đã đến buổi họp!</h1>
             <p className="lead">Tìm và chọn tên của bạn để hoàn tất điểm danh.</p>
@@ -226,7 +228,7 @@ export default function AttendanceApp() {
             {error && <p className="error-message">{error}</p>}
             <button className="primary-button" type="button" onClick={confirmAttendance} disabled={submitting}>
               {submitting ? <span className="spinner" /> : <Check size={21} />}
-              {submitting ? "Đang ghi nhận..." : isCorrecting ? "Xác nhận thay đổi" : "Xác nhận tôi đã đến"}
+              {submitting ? "Đang ghi nhận..." : "Xác nhận tôi đã đến"}
             </button>
             <button className="text-button" type="button" onClick={() => setView("search")}>Không phải tôi, chọn lại</button>
           </div>
@@ -244,9 +246,6 @@ export default function AttendanceApp() {
             <div className="success-ticket"><small>Xin chào</small><strong>{selected.name}</strong><span><Check size={15} /> Đã ghi nhận lúc {checkedAt}</span></div>
             <p className="closing-note">Chúc bạn có một buổi kết nối thật hiệu quả.</p>
             <div className="device-locked"><Check size={16} /> Đã điểm danh hôm nay</div>
-            {deviceCheckin?.correctionToken && (
-              <button className="text-button" type="button" onClick={startCorrection}>Tôi chọn nhầm, sửa lại</button>
-            )}
           </div>
         )}
       </section>

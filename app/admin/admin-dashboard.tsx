@@ -6,12 +6,13 @@ import { CalendarDays, Clock, Download, LockKeyhole, LogOut, RefreshCw, Users } 
 type AttendanceRow = { memberId: number; name: string; checkedAt: string };
 
 function formatCheckedAt(value: string) {
+  const parsed = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(value) ? value : `${value.replace(" ", "T")}Z`);
   return new Intl.DateTimeFormat("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     timeZone: "Asia/Ho_Chi_Minh",
-  }).format(new Date(`${value.replace(" ", "T")}Z`));
+  }).format(parsed);
 }
 
 function formatDate(value: string) {
@@ -107,7 +108,7 @@ export default function AdminDashboard() {
       </header>
       <section className="admin-content">
         <div className="admin-heading">
-          <div><p className="admin-kicker">BNI Mountain</p><h1>Thành viên đã điểm danh</h1><p>Dữ liệu ngày {formatDate(date)}</p></div>
+          <div><p className="admin-kicker">BNI Mountain</p><h1>Thành viên đã điểm danh</h1><p>Dữ liệu trực tiếp từ Google Sheet · {formatDate(date)}</p></div>
           <div className="admin-actions">
             <label className="admin-date-filter"><CalendarDays size={18} /><span>Ngày</span><input type="date" value={date} onChange={(event) => { setDate(event.target.value); void loadAttendance(event.target.value); }} /></label>
             <button type="button" className="admin-refresh" onClick={() => void loadAttendance(date)} disabled={loading}><RefreshCw size={18} className={loading ? "is-spinning" : ""} /> Làm mới</button>
