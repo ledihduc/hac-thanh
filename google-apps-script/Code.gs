@@ -27,7 +27,7 @@ function doPost(event) {
     if (payload.action === "list") {
       if (!sheet) return jsonResponse({ ok: true, rows: [] });
       prepareSheet(sheet);
-      const rows = readRows(sheet, attendanceDate);
+      const rows = readRows(sheet);
       return jsonResponse({ ok: true, rows: rows });
     }
     if (payload.action !== "checkin") {
@@ -41,7 +41,7 @@ function doPost(event) {
     } else {
       prepareSheet(sheet);
     }
-    const rows = readRows(sheet, attendanceDate);
+    const rows = readRows(sheet);
 
     const memberId = Number(payload.memberId);
     const name = String(payload.name || "");
@@ -93,17 +93,13 @@ function sheetNameTimestamp(name) {
   return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
 }
 
-function readRows(sheet, attendanceDate) {
+function readRows(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return [];
   const range = sheet.getRange(2, 1, lastRow - 1, HEADERS.length);
   const values = range.getValues();
-  const displayValues = range.getDisplayValues();
   return values
-    .filter(function (row, index) {
-      return String(displayValues[index][0] || "").trim() === attendanceDate
-        || normalizeDate(row[0]) === attendanceDate;
-    })
+    .filter(function (row) { return String(row[1] || "").trim() !== ""; })
     .map(function (row) {
       const checkedAt = row[3] instanceof Date ? row[3] : new Date(row[3]);
       return {
