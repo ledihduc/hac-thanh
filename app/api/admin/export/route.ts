@@ -3,13 +3,16 @@ import { getDb } from "@/db";
 import { attendance } from "@/db/schema";
 import { isAdminRequest } from "@/lib/admin-auth";
 import { createAttendanceWorkbook } from "@/lib/attendance-xlsx";
-import { todayInVietnam } from "@/lib/vietnam-time";
+import { dateFromRequest } from "@/lib/vietnam-time";
 
 export async function GET(request: Request) {
   if (!isAdminRequest(request)) {
     return Response.json({ error: "Bạn chưa đăng nhập quản trị." }, { status: 401 });
   }
-  const date = todayInVietnam();
+  const date = dateFromRequest(request);
+  if (!date) {
+    return Response.json({ error: "Ngày cần xuất không hợp lệ." }, { status: 400 });
+  }
   const rows = await getDb()
     .select({ memberId: attendance.memberId, name: attendance.name, checkedAt: attendance.checkedAt })
     .from(attendance)

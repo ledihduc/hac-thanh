@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Clock, Download, LockKeyhole, LogOut, RefreshCw, Users } from "lucide-react";
+import { CalendarDays, Clock, Download, LockKeyhole, LogOut, RefreshCw, Users } from "lucide-react";
 
 type AttendanceRow = { memberId: number; name: string; checkedAt: string };
 
@@ -27,10 +27,11 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const loadAttendance = useCallback(async () => {
+  const loadAttendance = useCallback(async (requestedDate?: string) => {
     setLoading(true);
     try {
-      const response = await fetch("/api/admin/attendance", { cache: "no-store" });
+      const query = requestedDate ? `?date=${encodeURIComponent(requestedDate)}` : "";
+      const response = await fetch(`/api/admin/attendance${query}`, { cache: "no-store" });
       if (response.status === 401) {
         setAuthenticated(false);
         return;
@@ -108,18 +109,19 @@ export default function AdminDashboard() {
         <div className="admin-heading">
           <div><p className="admin-kicker">Buổi họp #332</p><h1>Thành viên đã điểm danh</h1><p>Dữ liệu ngày {formatDate(date)}</p></div>
           <div className="admin-actions">
-            <button type="button" className="admin-refresh" onClick={() => void loadAttendance()} disabled={loading}><RefreshCw size={18} className={loading ? "is-spinning" : ""} /> Làm mới</button>
-            <a className="admin-download" href="/api/admin/export"><Download size={18} /> Tải Excel</a>
+            <label className="admin-date-filter"><CalendarDays size={18} /><span>Ngày</span><input type="date" value={date} onChange={(event) => { setDate(event.target.value); void loadAttendance(event.target.value); }} /></label>
+            <button type="button" className="admin-refresh" onClick={() => void loadAttendance(date)} disabled={loading}><RefreshCw size={18} className={loading ? "is-spinning" : ""} /> Làm mới</button>
+            <a className="admin-download" href={`/api/admin/export?date=${encodeURIComponent(date)}`}><Download size={18} /> Tải Excel</a>
           </div>
         </div>
-        <div className="admin-summary"><Users size={22} /><div><strong>{rows.length}</strong><span>thành viên đã đến hôm nay</span></div></div>
+        <div className="admin-summary"><Users size={22} /><div><strong>{rows.length}</strong><span>thành viên đã đến trong ngày</span></div></div>
         {error && <div className="admin-error">{error}</div>}
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead><tr><th>STT</th><th>Thành viên</th><th>Mã</th><th><Clock size={15} /> Thời gian</th></tr></thead>
             <tbody>
               {rows.map((row, index) => <tr key={row.memberId}><td>{index + 1}</td><td><strong>{row.name}</strong></td><td>{String(row.memberId).padStart(2, "0")}</td><td>{formatCheckedAt(row.checkedAt)}</td></tr>)}
-              {rows.length === 0 && <tr><td colSpan={4} className="admin-empty">Chưa có thành viên nào điểm danh hôm nay.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={4} className="admin-empty">Chưa có thành viên nào điểm danh trong ngày này.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -92,6 +92,9 @@ footer span { padding:0 8px; color:var(--red); }
 .admin-refresh,.admin-download { min-height:46px; display:flex; align-items:center; justify-content:center; gap:8px; padding:0 17px; border:1px solid #ddd7d1; border-radius:12px; font-size:13px; font-weight:800; text-decoration:none; }
 .admin-refresh { color:#5f5a55; background:#fff; }
 .admin-download { color:#fff; border-color:var(--red); background:var(--red); box-shadow:0 10px 24px rgba(200,16,46,.18); }
+.admin-date-filter { min-height:46px; display:flex; align-items:center; gap:8px; padding:0 12px; border:1px solid #ddd7d1; border-radius:12px; color:#5f5a55; background:#fff; font-size:12px; font-weight:800; }
+.admin-date-filter span { color:#8a837d; }
+.admin-date-filter input { min-width:128px; border:0; outline:0; color:#2c2926; background:transparent; font-size:13px; font-weight:700; cursor:pointer; }
 .admin-summary { width:max-content; display:flex; align-items:center; gap:14px; margin-bottom:20px; padding:16px 20px; border:1px solid #ead8dc; border-radius:16px; color:var(--red); background:#fff8f9; }
 .admin-summary div { display:flex; align-items:baseline; gap:7px; }
 .admin-summary strong { font-size:26px; }
@@ -137,7 +140,9 @@ footer span { padding:0 8px; color:var(--red); }
   .admin-content { padding-top:30px; }
   .admin-heading { align-items:stretch; flex-direction:column; }
   .admin-actions { width:100%; }
+  .admin-actions { flex-wrap:wrap; }
   .admin-actions > * { flex:1; }
+  .admin-date-filter { flex-basis:100%; }
   .admin-summary { width:100%; }
   .admin-login-card { padding:30px 24px; }
   .admin-table th,.admin-table td { padding:0 12px; }
